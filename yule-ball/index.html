@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yule Ball — Matchmaker</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0a1022;color:#eef2ff;margin:0;padding:24px}
+    .wrap{max-width:720px;margin:0 auto}
+    .card{background:#121a33;border:1px solid #2d3a68;border-radius:12px;padding:20px;margin-bottom:16px}
+    h1{margin:0 0 10px;color:#f8d36a}.muted{color:#b7c3ea}
+    label{display:block;margin:12px 0 6px}input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #3a4b82;background:#0f1730;color:#fff}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    button{background:#f8d36a;color:#1b2240;border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+    ul{padding-left:18px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #4760a8;color:#c9d5ff;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>✨ Yule Ball Matchmaker</h1>
+    <p class="muted">A fully local app: profiles stay in your browser and matching runs without external APIs.</p>
+
+    <div class="card">
+      <h2>Register</h2>
+      <div class="row">
+        <div><label>Name</label><input id="name" /></div>
+        <div><label>Year</label><select id="year"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Party style</label><select id="party"><option>House party</option><option>Legacy party</option><option>Going out</option></select></div>
+        <div><label>Priority</label><select id="priority"><option>Study</option><option>Sleep</option><option>Socialising</option></select></div>
+      </div>
+      <label>Ideal hangout</label><textarea id="hangout" rows="2"></textarea>
+      <label>About me</label><textarea id="about" rows="2"></textarea>
+      <button id="saveBtn">Add profile</button>
+      <p id="msg" class="muted"></p>
+    </div>
+
+    <div class="card">
+      <h2>Find Match</h2>
+      <label>Your name</label>
+      <select id="who"></select>
+      <button id="matchBtn">Find best match</button>
+      <div id="result" class="muted" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Registered attendees <span id="count" class="pill">0</span></h2>
+      <ul id="list"></ul>
+    </div>
+  </div>
+
+<script>
+const key = 'yule_ball_profiles_v1';
+const profiles = JSON.parse(localStorage.getItem(key) || '[]');
+
+function save(){ localStorage.setItem(key, JSON.stringify(profiles)); }
+function render(){
+  const ul=document.getElementById('list');
+  const who=document.getElementById('who');
+  ul.innerHTML=''; who.innerHTML='';
+  profiles.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.textContent=`${p.name} (${p.year}) — ${p.party}, ${p.priority}`;
+    ul.appendChild(li);
+    const opt=document.createElement('option'); opt.value=i; opt.textContent=p.name; who.appendChild(opt);
+  });
+  document.getElementById('count').textContent=profiles.length;
+}
+
+function score(a,b){
+  let s=0;
+  if(a.party===b.party) s+=35;
+  if(a.priority===b.priority) s+=25;
+  if(a.year===b.year) s+=15;
+  const sharedWords = a.hangout.toLowerCase().split(/\W+/).filter(w=>w.length>3 && b.hangout.toLowerCase().includes(w)).length;
+  s += Math.min(25, sharedWords*5);
+  return Math.min(100,s);
+}
+
+document.getElementById('saveBtn').onclick=()=>{
+  const p={
+    name:name.value.trim(), year:year.value, party:party.value, priority:priority.value,
+    hangout:hangout.value.trim(), about:about.value.trim()
+  };
+  if(!p.name || !p.hangout || !p.about){ msg.textContent='Please fill name, hangout, and about.'; return; }
+  profiles.push(p); save(); render(); msg.textContent='Profile added.';
+  name.value=''; hangout.value=''; about.value='';
+};
+
+document.getElementById('matchBtn').onclick=()=>{
+  const idx=Number(document.getElementById('who').value);
+  if(Number.isNaN(idx) || profiles.length<2){ result.textContent='Need at least 2 profiles.'; return; }
+  const me=profiles[idx];
+  let best=null, bestScore=-1;
+  profiles.forEach((p,i)=>{ if(i!==idx){ const s=score(me,p); if(s>bestScore){bestScore=s; best=p;} } });
+  result.innerHTML = best ? `<strong>${me.name}</strong> pairs best with <strong>${best.name}</strong> — compatibility <strong>${bestScore}%</strong>.<br/>Ice breaker: "${me.name}, ask ${best.name} about ${best.priority.toLowerCase()} vs ${me.priority.toLowerCase()} at ISB!"` : 'No match found.';
+};
+
+render();
+</script>
+</body>
+</html>
